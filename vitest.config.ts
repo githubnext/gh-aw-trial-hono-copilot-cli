@@ -4,6 +4,17 @@ export default defineConfig({
   test: {
     globals: true,
     setupFiles: ['./.vitest.config/setup-vitest.ts'],
+    // Performance optimizations for faster test execution
+    // These settings reduce test overhead while maintaining correctness
+    maxConcurrency: 16, // Allow more tests to run concurrently (default: CPU cores)
+    isolate: false, // Faster execution by reusing test environment (safe for Hono tests)
+    poolOptions: {
+      threads: {
+        singleThread: false, // Enable parallel execution in threads
+        isolate: false, // Reuse worker threads for better performance
+      },
+    },
+    // Note: fileParallelism defaults to true, which is optimal
     coverage: {
       enabled: true,
       provider: 'v8',
