@@ -68,9 +68,15 @@ export const jwt = (options: {
     throw new Error('`crypto.subtle.importKey` is undefined. JWT auth middleware requires it.')
   }
 
-  return async function jwt(ctx, next) {
-    const headerName = options.headerName || 'Authorization'
+  // Cache static configuration values to avoid repeated property access on every request
+  const headerName = options.headerName || 'Authorization'
+  const isCookieString = typeof options.cookie === 'string'
+  const cookieKey = isCookieString ? options.cookie : options.cookie?.key
+  const cookieSecret = !isCookieString ? options.cookie?.secret : undefined
+  const cookiePrefixOptions = !isCookieString ? options.cookie?.prefixOptions : undefined
+  const verifyOptions = { alg: options.alg, ...verifyOpts }
 
+  return async function jwt(ctx, next) {
     const credentials = ctx.req.raw.headers.get(headerName)
     let token
     if (credentials) {
@@ -88,25 +94,21 @@ export const jwt = (options: {
       } else {
         token = parts[1]
       }
-    } else if (options.cookie) {
-      if (typeof options.cookie == 'string') {
-        token = getCookie(ctx, options.cookie)
-      } else if (options.cookie.secret) {
-        if (options.cookie.prefixOptions) {
-          token = await getSignedCookie(
-            ctx,
-            options.cookie.secret,
-            options.cookie.key,
-            options.cookie.prefixOptions
-          )
+    } else if (cookieKey) {
+      // Use cached cookie configuration values
+      if (isCookieString) {
+        token = getCookie(ctx, cookieKey)
+      } else if (cookieSecret) {
+        if (cookiePrefixOptions) {
+          token = await getSignedCookie(ctx, cookieSecret, cookieKey, cookiePrefixOptions)
         } else {
-          token = await getSignedCookie(ctx, options.cookie.secret, options.cookie.key)
+          token = await getSignedCookie(ctx, cookieSecret, cookieKey)
         }
       } else {
-        if (options.cookie.prefixOptions) {
-          token = getCookie(ctx, options.cookie.key, options.cookie.prefixOptions)
+        if (cookiePrefixOptions) {
+          token = getCookie(ctx, cookieKey, cookiePrefixOptions)
         } else {
-          token = getCookie(ctx, options.cookie.key)
+          token = getCookie(ctx, cookieKey)
         }
       }
     }
@@ -126,10 +128,8 @@ export const jwt = (options: {
     let payload
     let cause
     try {
-      payload = await Jwt.verify(token, options.secret, {
-        alg: options.alg,
-        ...verifyOpts,
-      })
+      // Use cached verify options
+      payload = await Jwt.verify(token, options.secret, verifyOptions)
     } catch (e) {
       cause = e
     }
