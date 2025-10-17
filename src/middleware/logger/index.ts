@@ -25,8 +25,7 @@ const time = (start: number) => {
   return humanize([delta < 1000 ? delta + 'ms' : Math.round(delta / 1000) + 's'])
 }
 
-const colorStatus = async (status: number) => {
-  const colorEnabled = await getColorEnabledAsync()
+const colorStatus = (status: number, colorEnabled: boolean) => {
   if (colorEnabled) {
     switch ((status / 100) | 0) {
       case 5: // red = error
@@ -47,18 +46,19 @@ const colorStatus = async (status: number) => {
 
 type PrintFunc = (str: string, ...rest: string[]) => void
 
-async function log(
+function log(
   fn: PrintFunc,
   prefix: string,
   method: string,
   path: string,
   status: number = 0,
-  elapsed?: string
+  elapsed?: string,
+  colorEnabled: boolean = false
 ) {
   const out =
     prefix === LogPrefix.Incoming
       ? `${prefix} ${method} ${path}`
-      : `${prefix} ${method} ${path} ${await colorStatus(status)} ${elapsed}`
+      : `${prefix} ${method} ${path} ${colorStatus(status, colorEnabled)} ${elapsed}`
   fn(out)
 }
 
@@ -79,17 +79,25 @@ async function log(
  * ```
  */
 export const logger = (fn: PrintFunc = console.log): MiddlewareHandler => {
+  // Cache color support check once at middleware initialization
+  let colorEnabled: boolean | null = null
+  
   return async function logger(c, next) {
+    // Lazy initialize color support on first request
+    if (colorEnabled === null) {
+      colorEnabled = await getColorEnabledAsync()
+    }
+    
     const { method, url } = c.req
 
     const path = url.slice(url.indexOf('/', 8))
 
-    await log(fn, LogPrefix.Incoming, method, path)
+    log(fn, LogPrefix.Incoming, method, path)
 
     const start = Date.now()
 
     await next()
 
-    await log(fn, LogPrefix.Outgoing, method, path, c.res.status, time(start))
+    log(fn, LogPrefix.Outgoing, method, path, c.res.status, time(start), colorEnabled)
   }
 }
