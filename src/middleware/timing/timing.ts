@@ -82,6 +82,15 @@ export const timing = (config?: TimingOptions): MiddlewareHandler => {
     crossOrigin: false,
     ...config,
   }
+
+  // Cache function type checks at initialization to avoid per-request overhead
+  const isEnabledFunction = typeof options.enabled === 'function'
+  const isCrossOriginFunction = typeof options.crossOrigin === 'function'
+  const crossOriginString =
+    !isCrossOriginFunction && typeof options.crossOrigin === 'string'
+      ? options.crossOrigin
+      : null
+
   return async function timing(c, next) {
     const headers: string[] = []
     const timers = new Map<string, Timer>()
@@ -105,13 +114,17 @@ export const timing = (config?: TimingOptions): MiddlewareHandler => {
       timers.forEach((_, key) => endTime(c, key))
     }
 
-    const enabled = typeof options.enabled === 'function' ? options.enabled(c) : options.enabled
+    // Use cached type checks instead of per-request typeof operations
+    const enabled = isEnabledFunction ? (options.enabled as Function)(c) : options.enabled
 
     if (enabled) {
       c.res.headers.append('Server-Timing', headers.join(','))
 
-      const crossOrigin =
-        typeof options.crossOrigin === 'function' ? options.crossOrigin(c) : options.crossOrigin
+      const crossOrigin = isCrossOriginFunction
+        ? (options.crossOrigin as Function)(c)
+        : crossOriginString !== null
+          ? crossOriginString
+          : options.crossOrigin
 
       if (crossOrigin) {
         c.res.headers.append(
