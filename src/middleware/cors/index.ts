@@ -96,6 +96,10 @@ export const cors = (options?: CORSOptions): MiddlewareHandler => {
     }
   })(opts.allowMethods)
 
+  // Cache joined strings for static arrays to avoid repeated .join() calls
+  const exposeHeadersCache = opts.exposeHeaders?.length ? opts.exposeHeaders.join(',') : null
+  const allowHeadersCache = opts.allowHeaders?.length ? opts.allowHeaders.join(',') : null
+
   return async function cors(c, next) {
     function set(key: string, value: string) {
       c.res.headers.set(key, value)
@@ -122,8 +126,8 @@ export const cors = (options?: CORSOptions): MiddlewareHandler => {
       set('Access-Control-Allow-Credentials', 'true')
     }
 
-    if (opts.exposeHeaders?.length) {
-      set('Access-Control-Expose-Headers', opts.exposeHeaders.join(','))
+    if (exposeHeadersCache) {
+      set('Access-Control-Expose-Headers', exposeHeadersCache)
     }
 
     if (c.req.method === 'OPTIONS') {
@@ -136,15 +140,15 @@ export const cors = (options?: CORSOptions): MiddlewareHandler => {
         set('Access-Control-Allow-Methods', allowMethods.join(','))
       }
 
-      let headers = opts.allowHeaders
-      if (!headers?.length) {
+      let headers = allowHeadersCache
+      if (!headers) {
         const requestHeaders = c.req.header('Access-Control-Request-Headers')
         if (requestHeaders) {
-          headers = requestHeaders.split(/\s*,\s*/)
+          headers = requestHeaders.split(/\s*,\s*/).join(',')
         }
       }
-      if (headers?.length) {
-        set('Access-Control-Allow-Headers', headers.join(','))
+      if (headers) {
+        set('Access-Control-Allow-Headers', headers)
         c.res.headers.append('Vary', 'Access-Control-Request-Headers')
       }
 
