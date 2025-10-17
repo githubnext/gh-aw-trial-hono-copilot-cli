@@ -73,18 +73,26 @@ export const cache = (options: {
     options.cacheableStatusCodes ?? defaultCacheableStatusCodes
   )
 
+  // Pre-parse cache-control directives at initialization to avoid per-request parsing
+  const parsedCacheControlDirectives = cacheControlDirectives?.map((directive) => {
+    const [name, value] = directive.trim().split('=', 2)
+    return {
+      name: name.toLowerCase(),
+      value,
+      formatted: `${name.toLowerCase()}${value ? `=${value}` : ''}`,
+    }
+  })
+
   const addHeader = (c: Context) => {
-    if (cacheControlDirectives) {
+    if (parsedCacheControlDirectives) {
       const existingDirectives =
         c.res.headers
           .get('Cache-Control')
           ?.split(',')
-          .map((d) => d.trim().split('=', 1)[0]) ?? []
-      for (const directive of cacheControlDirectives) {
-        let [name, value] = directive.trim().split('=', 2)
-        name = name.toLowerCase()
-        if (!existingDirectives.includes(name)) {
-          c.header('Cache-Control', `${name}${value ? `=${value}` : ''}`, { append: true })
+          .map((d) => d.trim().split('=', 1)[0].toLowerCase()) ?? []
+      for (const directive of parsedCacheControlDirectives) {
+        if (!existingDirectives.includes(directive.name)) {
+          c.header('Cache-Control', directive.formatted, { append: true })
         }
       }
     }
