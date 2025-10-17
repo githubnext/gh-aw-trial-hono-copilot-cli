@@ -40,7 +40,9 @@ interface PrettyOptions {
 export const prettyJSON = (options?: PrettyOptions): MiddlewareHandler => {
   const targetQuery = options?.query ?? 'pretty'
   return async function prettyJSON(c, next) {
-    const pretty = c.req.query(targetQuery) || c.req.query(targetQuery) === ''
+    // Check query parameter once - eliminates duplicate query parsing overhead
+    const queryValue = c.req.query(targetQuery)
+    const pretty = !!queryValue || queryValue === ''
     await next()
     if (pretty && c.res.headers.get('Content-Type')?.startsWith('application/json')) {
       const obj = await c.res.json()
