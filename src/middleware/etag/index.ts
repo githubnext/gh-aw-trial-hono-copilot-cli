@@ -81,6 +81,10 @@ export const etag = (options?: ETagOptions): MiddlewareHandler => {
   const weak = options?.weak ?? false
   const generator = initializeGenerator(options?.generateDigest)
 
+  // Convert retained headers array to Set for O(1) lookup performance
+  // This optimization eliminates O(n) indexOf lookups on every 304 response header
+  const retainedHeadersSet = new Set(retainedHeaders.map((h) => h.toLowerCase()))
+
   return async function etag(c, next) {
     const ifNoneMatch = c.req.header('If-None-Match') ?? null
 
@@ -113,7 +117,7 @@ export const etag = (options?: ETagOptions): MiddlewareHandler => {
         },
       })
       c.res.headers.forEach((_, key) => {
-        if (retainedHeaders.indexOf(key.toLowerCase()) === -1) {
+        if (!retainedHeadersSet.has(key.toLowerCase())) {
           c.res.headers.delete(key)
         }
       })
