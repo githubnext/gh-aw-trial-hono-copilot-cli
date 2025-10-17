@@ -1,0 +1,59 @@
+name: 'Daily Perf Improver - Build Steps'
+description: 'Sets up the performance development environment for Hono'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version-file: '.tool-versions'
+      shell: bash
+    
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version-file: '.tool-versions'
+      shell: bash
+    
+    - name: Setup Deno
+      uses: denoland/setup-deno@v2
+      with:
+        deno-version-file: '.tool-versions'
+      shell: bash
+    
+    - name: Install dependencies
+      run: |
+        echo "=== Installing dependencies ===" >> build-steps.log 2>&1
+        bun install --frozen-lockfile >> build-steps.log 2>&1
+        echo "Dependencies installed successfully" >> build-steps.log 2>&1
+      shell: bash
+    
+    - name: Build project
+      run: |
+        echo "=== Building project ===" >> build-steps.log 2>&1
+        bun run build >> build-steps.log 2>&1
+        echo "Build completed successfully" >> build-steps.log 2>&1
+      shell: bash
+    
+    - name: Verify build output
+      run: |
+        echo "=== Verifying build output ===" >> build-steps.log 2>&1
+        ls -la dist/ >> build-steps.log 2>&1
+        echo "Build output verified" >> build-steps.log 2>&1
+      shell: bash
+    
+    - name: Setup complete
+      run: |
+        echo "=== Performance development environment ready ===" >> build-steps.log 2>&1
+        echo "Available scripts:" >> build-steps.log 2>&1
+        echo "  - bun run build: Full build" >> build-steps.log 2>&1
+        echo "  - bun run test: Run tests" >> build-steps.log 2>&1
+        echo "  - bun run lint: Lint code" >> build-steps.log 2>&1
+        echo "  - bun run format: Format code" >> build-steps.log 2>&1
+        echo "" >> build-steps.log 2>&1
+        echo "Benchmarks available in:" >> build-steps.log 2>&1
+        echo "  - benchmarks/http-server: HTTP performance testing" >> build-steps.log 2>&1
+        echo "  - benchmarks/routers: Router comparison benchmarks" >> build-steps.log 2>&1
+        echo "  - benchmarks/jsx: JSX rendering benchmarks" >> build-steps.log 2>&1
+      shell: bash
