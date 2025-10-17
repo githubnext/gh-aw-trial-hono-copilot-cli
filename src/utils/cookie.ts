@@ -36,14 +36,17 @@ export type CookieConstraint<Name> = Name extends `__Secure-${string}`
 
 const algorithm = { name: 'HMAC', hash: 'SHA-256' }
 
+// Reuse TextEncoder instance for better performance (avoid repeated allocations)
+const encoder = new TextEncoder()
+
 const getCryptoKey = async (secret: string | BufferSource): Promise<CryptoKey> => {
-  const secretBuf = typeof secret === 'string' ? new TextEncoder().encode(secret) : secret
+  const secretBuf = typeof secret === 'string' ? encoder.encode(secret) : secret
   return await crypto.subtle.importKey('raw', secretBuf, algorithm, false, ['sign', 'verify'])
 }
 
 const makeSignature = async (value: string, secret: string | BufferSource): Promise<string> => {
   const key = await getCryptoKey(secret)
-  const signature = await crypto.subtle.sign(algorithm.name, key, new TextEncoder().encode(value))
+  const signature = await crypto.subtle.sign(algorithm.name, key, encoder.encode(value))
   // the returned base64 encoded signature will always be 44 characters long and end with one or two equal signs
   return btoa(String.fromCharCode(...new Uint8Array(signature)))
 }
@@ -59,7 +62,7 @@ const verifySignature = async (
     for (let i = 0, len = signatureBinStr.length; i < len; i++) {
       signature[i] = signatureBinStr.charCodeAt(i)
     }
-    return await crypto.subtle.verify(algorithm, secret, signature, new TextEncoder().encode(value))
+    return await crypto.subtle.verify(algorithm, secret, signature, encoder.encode(value))
   } catch {
     return false
   }
