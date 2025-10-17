@@ -9,7 +9,7 @@
 
 import arg from 'arg'
 import { $, stdout } from 'bun'
-import { build } from 'esbuild'
+import { build, context } from 'esbuild'
 import type { Plugin, PluginBuild, BuildOptions } from 'esbuild'
 import * as glob from 'glob'
 import fs from 'fs'
@@ -67,29 +67,42 @@ const addExtension = (extension: string = '.js', fileExtension: string = '.ts'):
 })
 
 const commonOptions: BuildOptions = {
-  watch: isWatch,
   entryPoints,
   logLevel: 'info',
   platform: 'node',
 }
 
-const cjsBuild = () =>
-  build({
+const cjsBuild = async () => {
+  const options = {
     ...commonOptions,
     outbase: './src',
     outdir: './dist/cjs',
-    format: 'cjs',
-  })
+    format: 'cjs' as const,
+  }
+  if (isWatch) {
+    const ctx = await context(options)
+    await ctx.watch()
+    return ctx
+  }
+  return build(options)
+}
 
-const esmBuild = () =>
-  build({
+const esmBuild = async () => {
+  const options = {
     ...commonOptions,
     bundle: true,
     outbase: './src',
     outdir: './dist',
-    format: 'esm',
+    format: 'esm' as const,
     plugins: [addExtension('.js')],
-  })
+  }
+  if (isWatch) {
+    const ctx = await context(options)
+    await ctx.watch()
+    return ctx
+  }
+  return build(options)
+}
 
 // Run esbuild and TypeScript compilation in parallel for faster builds
 const [, , typesResult] = await Promise.all([
