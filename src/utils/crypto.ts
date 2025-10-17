@@ -12,6 +12,9 @@ type Algorithm = {
 
 type Data = string | boolean | number | JSONValue | ArrayBufferView | ArrayBuffer
 
+// Reuse TextEncoder instance to avoid repeated allocations
+const encoder = new TextEncoder()
+
 export const sha256 = async (data: Data): Promise<string | null> => {
   const algorithm: Algorithm = { name: 'SHA-256', alias: 'sha256' }
   const hash = await createHash(data, algorithm)
@@ -39,7 +42,7 @@ export const createHash = async (data: Data, algorithm: Algorithm): Promise<stri
     if (typeof data === 'object') {
       data = JSON.stringify(data)
     }
-    sourceBuffer = new TextEncoder().encode(String(data))
+    sourceBuffer = encoder.encode(String(data))
   }
 
   if (crypto && crypto.subtle) {
