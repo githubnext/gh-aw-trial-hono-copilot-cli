@@ -252,10 +252,10 @@ function getCSPDirectives(
       }
     })
 
+    // Precompute kebab-case conversion at initialization time
+    const kebabDirective = camelToKebab(directive)
     resultValues.push(
-      directive.replace(/[A-Z]+(?![a-z])|[A-Z]/g, (match, offset) =>
-        offset ? '-' + match.toLowerCase() : match.toLowerCase()
-      ),
+      kebabDirective,
       ...valueArray.flatMap((value) => [' ', value]),
       '; '
     )
@@ -310,8 +310,16 @@ function getPermissionsPolicyDirectives(policy: PermissionsPolicyOptions): strin
     .join(', ')
 }
 
+// Cache for camelCase to kebab-case transformations
+const camelToKebabCache = new Map<string, string>()
+
 function camelToKebab(str: string): string {
-  return str.replace(/([a-z\d])([A-Z])/g, '$1-$2').toLowerCase()
+  let cached = camelToKebabCache.get(str)
+  if (cached === undefined) {
+    cached = str.replace(/([a-z\d])([A-Z])/g, '$1-$2').toLowerCase()
+    camelToKebabCache.set(str, cached)
+  }
+  return cached
 }
 
 function getReportingEndpoints(
