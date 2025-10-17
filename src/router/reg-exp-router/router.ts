@@ -102,6 +102,9 @@ function buildMatcherFromPreprocessedRoutes<T>(
   return [regexp, handlerMap, staticMap] as Matcher<T>
 }
 
+// Cache for sorted middleware keys to avoid repeated sorting
+const sortedKeysCache = new WeakMap<Record<string, unknown[]>, string[]>()
+
 function findMiddleware<T>(
   middleware: Record<string, T[]> | undefined,
   path: string
@@ -110,7 +113,14 @@ function findMiddleware<T>(
     return undefined
   }
 
-  for (const k of Object.keys(middleware).sort((a, b) => b.length - a.length)) {
+  // Get sorted keys from cache or compute and cache them
+  let sortedKeys = sortedKeysCache.get(middleware)
+  if (!sortedKeys) {
+    sortedKeys = Object.keys(middleware).sort((a, b) => b.length - a.length)
+    sortedKeysCache.set(middleware, sortedKeys)
+  }
+
+  for (const k of sortedKeys) {
     if (buildWildcardRegExp(k).test(path)) {
       return [...middleware[k]]
     }
@@ -237,7 +247,7 @@ export class RegExpRouter<T> implements Router<T> {
         routes.push(
           ...(Object.keys(r[METHOD_NAME_ALL]).map((path) => [path, r[METHOD_NAME_ALL][path]]) as [
             string,
-            HandlerWithMetadata<T>[]
+            HandlerWithMetadata<T>[],
           ][])
         )
       }
